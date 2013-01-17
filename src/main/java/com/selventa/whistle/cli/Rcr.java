@@ -34,6 +34,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.openbel.framework.api.DefaultOrthologize;
 import org.openbel.framework.api.DefaultSpeciesDialect;
 import org.openbel.framework.api.Dialect;
 import org.openbel.framework.api.KAMStore;
@@ -41,7 +42,9 @@ import org.openbel.framework.api.KAMStoreImpl;
 import org.openbel.framework.api.Kam;
 import org.openbel.framework.api.Kam.KamNode;
 import org.openbel.framework.api.KamDialect;
-import org.openbel.framework.api.OrthologizedKam;
+import org.openbel.framework.api.Orthologize;
+import org.openbel.framework.api.SpeciesDialect;
+import org.openbel.framework.api.internal.KAMCatalogDao.KamInfo;
 import org.openbel.framework.api.internal.KAMStoreDaoImpl.BelTerm;
 import org.openbel.framework.common.bel.parser.BELParser;
 import org.openbel.framework.common.cfg.SystemConfiguration;
@@ -447,18 +450,21 @@ public class Rcr {
         Kam kam;
         logger.debug("Retrieving KAM '{}' from KamStore", kamName);
         if (commandLine.hasOption(SPECIES_TAXID_LONG_OPT)) {
-            final String taxId = commandLine.getOptionValue(SPECIES_TAXID_LONG_OPT);
+            final String taxIdValue = commandLine
+                    .getOptionValue(SPECIES_TAXID_LONG_OPT);
 
             // taxId string has already been validated as a numeric
-            final int speciesTaxId = Integer.parseInt(taxId);
+            final int taxId = Integer.parseInt(taxIdValue);
 
             logger.debug("Collapsing KAM '{}' to tax id {}.", kamName,
-                    String.valueOf(speciesTaxId));
+                    String.valueOf(taxId));
             kam = kamStore.getKam(kamName);
-            kam = new OrthologizedKam(new KamDialect(kam, dialect),
-                new DefaultSpeciesDialect(
-                kam.getKamInfo(), kamStore, speciesTaxId, false),
-                kamStore);
+            
+            KamInfo info = kam.getKamInfo();
+            Orthologize orthologize = new DefaultOrthologize();
+            SpeciesDialect dialect = new DefaultSpeciesDialect(info, kamStore,
+                    taxId, false);
+            kam = orthologize.orthologize(kam, kamStore, dialect);
         } else {
             kam = new KamDialect(kamStore.getKam(kamName), dialect);
         }
